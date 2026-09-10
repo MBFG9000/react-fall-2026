@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Refresher - Task 0</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>JavaScript Refresher - Task 0</h1>
+            <p class="subtitle">A comprehensive demonstration of JavaScript fundamentals</p>
+        </header>
+
+        <main>
+            <!-- Task 1: Variables and Data Types -->
+            <section class="task">
+                <h2>Task 1: Variables and Data Types</h2>
+                <div class="output" id="task1-output"></div>
+                <div class="insights">
+                    <h3>Answers & Insights:</h3>
+                    <ul>
+                        <li><strong>let vs const:</strong> <code>let</code> allows reassignment, <code>const</code> doesn't (but object properties can still be modified).</li>
+                        <li><strong>typeof null:</strong> Returns "object" (a known JavaScript quirk/bug).</li>
+                        <li><strong>Primitive types:</strong> string, number, boolean, undefined, null, symbol, bigint.</li>
+                        <li><strong>Insight:</strong> Primitives are immutable and compared by value, while objects are compared by reference.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Task 2: Arrays -->
+            <section class="task">
+                <h2>Task 2: Arrays</h2>
+                <div class="output" id="task2-output"></div>
+                <div class="insights">
+                    <h3>Insights:</h3>
+                    <ul>
+                        <li><code>map()</code> transforms each element and returns a new array.</li>
+                        <li><code>filter()</code> creates a new array with elements that pass a test.</li>
+                        <li><code>find()</code> returns the first element that matches.</li>
+                        <li><code>reduce()</code> accumulates values into a single result.</li>
+                        <li><code>includes()</code> checks for existence of a value.</li>
+                        <li>All these methods are non-mutating (don't modify the original array).</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Task 3: Arrays of Objects -->
+            <section class="task">
+                <h2>Task 3: Arrays of Objects</h2>
+                <div class="output" id="task3-output"></div>
+                <div class="insights">
+                    <h3>Insights:</h3>
+                    <ul>
+                        <li>Array methods work seamlessly with objects.</li>
+                        <li>Use <code>map()</code> to extract or transform object properties.</li>
+                        <li>Combining <code>reduce()</code> with comparison logic helps find max/min values.</li>
+                        <li>Spread operator creates shallow copies, preserving original data.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Task 4: Objects -->
+            <section class="task">
+                <h2>Task 4: Objects</h2>
+                <div class="output" id="task4-output"></div>
+                <div class="insights">
+                    <h3>Insights:</h3>
+                    <ul>
+                        <li>Objects are mutable - properties can be added, changed, or deleted.</li>
+                        <li>Destructuring provides clean syntax for extracting values.</li>
+                        <li>Nested destructuring works for deeply nested objects.</li>
+                        <li>Renaming during destructuring improves code clarity.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Task 5: Values and References -->
+            <section class="task">
+                <h2>Task 5: Values and References</h2>
+                <div class="output" id="task5-output"></div>
+                <div class="insights">
+                    <h3>Insights:</h3>
+                    <ul>
+                        <li>Objects are assigned by reference, not by value.</li>
+                        <li>Spread operator creates a shallow copy (one level deep).</li>
+                        <li>For nested objects, use deep cloning (JSON methods or structured clone).</li>
+                        <li>Understanding reference vs value is crucial to avoid unexpected mutations.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Task 6: Functions -->
+            <section class="task">
+                <h2>Task 6: Functions</h2>
+                <div class="output" id="task6-output"></div>
+                <div class="insights">
+                    <h3>Insights:</h3>
+                    <ul>
+                        <li>Arrow functions provide concise syntax.</li>
+                        <li>Arrow functions don't have their own <code>this</code> binding.</li>
+                        <li>Regular functions can be hoisted, arrow functions cannot.</li>
+                        <li>Use arrow functions for callbacks and short operations.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Task 7: Functions as Values -->
+            <section class="task">
+                <h2>Task 7: Functions as Values</h2>
+                <div class="output" id="task7-output"></div>
+                <div class="insights">
+                    <h3>Answers & Insights:</h3>
+                    <ul>
+                        <li><strong>Can functions be stored in variables?</strong> Yes, functions are first-class citizens in JavaScript.</li>
+                        <li><strong>Can functions be passed to other functions?</strong> Yes, these are called higher-order functions.</li>
+                        <li><strong>add vs add():</strong> <code>add</code> is the function reference, <code>add()</code> calls/invokes the function.</li>
+                        <li><strong>Insight:</strong> This pattern enables powerful functional programming techniques.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Task 8: Scope -->
+            <section class="task">
+                <h2>Task 8: Scope</h2>
+                <div class="output" id="task8-output"></div>
+                <div class="insights">
+                    <h3>Answers & Insights:</h3>
+                    <ul>
+                        <li><strong>Global scope:</strong> Variables accessible everywhere in the code.</li>
+                        <li><strong>Function scope:</strong> Variables only accessible within the function.</li>
+                        <li><strong>Block scope:</strong> Variables only accessible within {} block (let, const).</li>
+                        <li><strong>var vs let vs const:</strong> <code>var</code> is function-scoped and hoisted; <code>let</code> and <code>const</code> are block-scoped. <code>const</code> can't be reassigned.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Task 9: Closure -->
+            <section class="task">
+                <h2>Task 9: Closure</h2>
+                <div class="output" id="task9-output"></div>
+                <div class="insights">
+                    <h3>Insights:</h3>
+                    <ul>
+                        <li>Closures allow inner functions to access outer function variables even after the outer function has returned.</li>
+                        <li>Each closure maintains its own separate scope.</li>
+                        <li>Closures are created every time a function is created.</li>
+                        <li>Useful for data privacy and creating function factories.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Task 10: Destructuring, Spread and Rest -->
+            <section class="task">
+                <h2>Task 10: Destructuring, Spread and Rest</h2>
+                <div class="output" id="task10-output"></div>
+                <div class="insights">
+                    <h3>Insights:</h3>
+                    <ul>
+                        <li><strong>Spread (...):</strong> Expands an array/object into individual elements.</li>
+                        <li><strong>Rest (...):</strong> Collects multiple elements into an array.</li>
+                        <li>Same syntax, different context determines usage.</li>
+                        <li>Spread is used in array/object literals and function calls.</li>
+                        <li>Rest is used in function parameters and destructuring assignments.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Task 11: Optional Chaining and Default Values -->
+            <section class="task">
+                <h2>Task 11: Optional Chaining and Default Values</h2>
+                <div class="output" id="task11-output"></div>
+                <div class="insights">
+                    <h3>Insights:</h3>
+                    <ul>
+                        <li><strong>?. (Optional chaining):</strong> Safely accesses nested properties without errors.</li>
+                        <li><strong>?? (Nullish coalescing):</strong> Returns right side only if left is null/undefined.</li>
+                        <li><strong>|| (OR operator):</strong> Returns right side for any falsy value (0, "", false, null, undefined).</li>
+                        <li><strong>Key difference:</strong> ?? is more precise, only checking for null/undefined, not other falsy values.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Final Task: Student Management System -->
+            <section class="task">
+                <h2>Final Task: Student Management System</h2>
+                <div class="output" id="final-task-output"></div>
+                <div class="insights">
+                    <h3>Insights:</h3>
+                    <ul>
+                        <li>Combining array methods creates powerful data transformations.</li>
+                        <li>Pure functions (no mutations) make code more predictable.</li>
+                        <li>Composing small, focused functions improves maintainability.</li>
+                        <li>Modern JavaScript provides elegant solutions for common data operations.</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Created as a JavaScript fundamentals refresher | 2026</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
