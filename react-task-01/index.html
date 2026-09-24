@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Runtime and Async - Task 1</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>JavaScript Runtime and Async - Task 1</h1>
+            <p class="subtitle">Closures, Call Stack, Promises, async/await, Event Loop, Tasks and Microtasks</p>
+        </header>
+
+        <main>
+            <!-- Tasks -->
+            <section class="task">
+                <h2>Tasks</h2>
+                <p class="hint">Every task is created by <code>createTask(name)</code>. The execution counter lives inside the closure, so it is private and separate for each task.</p>
+
+                <table class="tasks-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Runs</th>
+                            <th>Loading time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tasks-body"></tbody>
+                </table>
+
+                <div class="controls">
+                    <button id="run-all">Run All Tasks</button>
+                    <button id="reset-all" class="secondary">Reset All</button>
+                </div>
+                <div class="output" id="run-all-output"></div>
+            </section>
+
+            <!-- Sequential vs Concurrent -->
+            <section class="task">
+                <h2>Sequential vs Concurrent</h2>
+                <p class="hint">
+                    Sequential uses <code>await task1.run()</code> one after another.
+                    Concurrent uses <code>Promise.allSettled([...])</code> to start everything at once.
+                </p>
+                <div class="controls">
+                    <button id="run-sequential">Run Sequential</button>
+                    <button id="run-concurrent">Run Concurrent</button>
+                    <button id="run-comparison">Run Comparison (both)</button>
+                </div>
+                <div class="output" id="compare-output"></div>
+                <div class="insights">
+                    <h3>Why the results are different:</h3>
+                    <ul>
+                        <li><strong>Sequential:</strong> each <code>await</code> pauses the function until that task settles, so the timers run one after another. Total time ≈ sum of all delays.</li>
+                        <li><strong>Concurrent:</strong> all <code>run()</code> calls are made before any <code>await</code>, so all three <code>setTimeout</code> timers are registered at the same moment and count down in parallel. Total time ≈ the longest single delay.</li>
+                        <li>JavaScript is single-threaded, but waiting is not done by JavaScript — the timers are handled by the browser, so the delays can overlap.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Event Loop Demo -->
+            <section class="task">
+                <h2>Event Loop Demo</h2>
+                <p class="hint">Open DevTools console as well — the demo prints there too. The code contains 2 timers, 2 promise callbacks and 1 async function.</p>
+                <div class="controls">
+                    <button id="run-event-loop">Run Event Loop Demo</button>
+                </div>
+
+                <h3>Predicted output</h3>
+                <div class="output" id="predicted-output"></div>
+
+                <h3>Actual output</h3>
+                <div class="output" id="event-loop-output"></div>
+
+                <div class="insights">
+                    <h3>Explanation: Call Stack → Microtask Queue → Task Queue → Event Loop</h3>
+                    <ul>
+                        <li><strong>Call Stack:</strong> the synchronous lines run first — "1 script start", "2 async start" (an async function body runs synchronously until the first <code>await</code>) and "7 script end".</li>
+                        <li><strong>Task Queue (macrotasks):</strong> both <code>setTimeout</code> callbacks are handed to the browser's timer API. Even with <code>0</code> ms they only go into the task queue, they never jump the line.</li>
+                        <li><strong>Microtask Queue:</strong> <code>.then()</code> callbacks and everything after an <code>await</code> are microtasks. When the stack becomes empty the event loop drains the <strong>whole</strong> microtask queue first — so "3 await resolved", "4 promise then 1", "5 promise then 2" and "6 chained then" all run before any timer.</li>
+                        <li><strong>Event Loop:</strong> only after the microtask queue is empty does it take one task from the task queue — "8 timeout 0" — drains microtasks again ("9 microtask from timeout"), and then takes the next task, "10 timeout 10".</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
