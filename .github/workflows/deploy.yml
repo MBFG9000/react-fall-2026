@@ -1,0 +1,65 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: react-task-02/package-lock.json
+
+      - name: Build react-task-02
+        working-directory: react-task-02
+        run: |
+          npm ci
+          npm run build
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp -r react-task-00 _site/react-task-00
+          cp -r react-task-01 _site/react-task-01
+          cp -r react-task-02/dist _site/react-task-02
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>React Fall 2026</title>
+          <h1>React Fall 2026</h1>
+          <ul>
+            <li><a href="react-task-00/">Task 00</a></li>
+            <li><a href="react-task-01/">Task 01</a></li>
+            <li><a href="react-task-02/">Task 02 — About Me (React)</a></li>
+          </ul>
+          HTML
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
