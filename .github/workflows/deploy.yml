@@ -27,6 +27,7 @@ jobs:
           cache-dependency-path: |
             react-task-02/package-lock.json
             react-task-03/package-lock.json
+            react-task-04/package-lock.json
 
       - name: Build react-task-02
         working-directory: react-task-02
@@ -40,6 +41,12 @@ jobs:
           npm ci
           npm run build
 
+      - name: Build react-task-04
+        working-directory: react-task-04
+        run: |
+          npm ci
+          npm run build
+
       - name: Assemble site
         run: |
           mkdir -p _site
@@ -47,6 +54,7 @@ jobs:
           cp -r react-task-01 _site/react-task-01
           cp -r react-task-02/dist _site/react-task-02
           cp -r react-task-03/dist _site/react-task-03
+          cp -r react-task-04/dist _site/react-task-04
           cat > _site/index.html <<'HTML'
           <!doctype html>
           <meta charset="utf-8">
@@ -57,6 +65,7 @@ jobs:
             <li><a href="react-task-01/">Task 01</a></li>
             <li><a href="react-task-02/">Task 02 — About Me (React)</a></li>
             <li><a href="react-task-03/">Task 03 — Glasshouse (Rendering and State)</a></li>
+            <li><a href="react-task-04/">Task 04 — Meridian Crew Roster (Effects &amp; API)</a></li>
           </ul>
           HTML
 
