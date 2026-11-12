@@ -29,6 +29,7 @@ jobs:
             react-task-03/package-lock.json
             react-task-04/package-lock.json
             react-task-05/package-lock.json
+            react-task-06/package-lock.json
 
       - name: Build react-task-02
         working-directory: react-task-02
@@ -54,6 +55,21 @@ jobs:
           npm ci
           npm run build
 
+      # .env.local is not in git, so the Firebase config comes from the repo's
+      # Settings → Secrets and variables → Actions. Vite reads these at build time.
+      - name: Build react-task-06
+        working-directory: react-task-06
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+        run: |
+          npm ci
+          npm run build
+
       - name: Assemble site
         run: |
           mkdir -p _site
@@ -63,8 +79,9 @@ jobs:
           cp -r react-task-03/dist _site/react-task-03
           cp -r react-task-04/dist _site/react-task-04
           cp -r react-task-05/dist _site/react-task-05
-          # Site-wide 404 page: also lets Task 05 deep links survive a refresh
-          cp react-task-05/gh-pages-404.html _site/404.html
+          cp -r react-task-06/dist _site/react-task-06
+          # Site-wide 404 page: lets Task 05 and Task 06 deep links survive a refresh
+          cp react-task-06/gh-pages-404.html _site/404.html
           cat > _site/index.html <<'HTML'
           <!doctype html>
           <meta charset="utf-8">
@@ -77,6 +94,7 @@ jobs:
             <li><a href="react-task-03/">Task 03 — Glasshouse (Rendering and State)</a></li>
             <li><a href="react-task-04/">Task 04 — Meridian Crew Roster (Effects &amp; API)</a></li>
             <li><a href="react-task-05/">Task 05 — Meridian Crew (Routing &amp; Architecture)</a></li>
+            <li><a href="react-task-06/">Task 06 — Meridian Crew (Caching &amp; Firebase Auth)</a></li>
           </ul>
           HTML
 
