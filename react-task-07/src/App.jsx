@@ -5,6 +5,8 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import RootLayout from './layouts/RootLayout.jsx';
 import HomePage from './pages/HomePage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
+// Not lazy: the offline page is in the main bundle, so it always works without a network.
+import OfflinePage from './pages/OfflinePage.jsx';
 import RouteErrorPage from './pages/RouteErrorPage.jsx';
 
 // Lazy pages: each becomes its own JS chunk, downloaded the first time the
@@ -16,6 +18,8 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 const SignupPage = lazy(() => import('./pages/SignupPage.jsx'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx'));
+const NewsListPage = lazy(() => import('./pages/NewsListPage.jsx'));
+const NewsDetailsPage = lazy(() => import('./pages/NewsDetailsPage.jsx'));
 
 const router = createBrowserRouter(
     [
@@ -38,6 +42,14 @@ const router = createBrowserRouter(
                             ],
                         },
                         { path: 'dashboard', element: <DashboardPage /> },
+                        {
+                            path: 'news',
+                            children: [
+                                { index: true, element: <NewsListPage /> },
+                                { path: ':articleId', element: <NewsDetailsPage /> },
+                            ],
+                        },
+                        { path: 'offline', element: <OfflinePage /> },
                         { path: 'login', element: <LoginPage /> },
                         { path: 'signup', element: <SignupPage /> },
                         {
@@ -54,7 +66,7 @@ const router = createBrowserRouter(
             ],
         },
     ],
-    // Vite's base path (e.g. /react-fall-2026/react-task-06/ on GitHub Pages).
+    // Vite's base path (e.g. /react-fall-2026/react-task-07/ on GitHub Pages).
     { basename: import.meta.env.BASE_URL },
 );
 

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext.jsx';
+import ConnectionStatus from './ConnectionStatus.jsx';
 
 const LINKS = [
     { to: '/', label: 'Home', end: true },
     { to: '/crew', label: 'Crew' },
     { to: '/dashboard', label: 'Dashboard' },
+    { to: '/news', label: 'News' },
     { to: '/about', label: 'About' },
 ];
 
@@ -30,6 +32,9 @@ export default function NavBar() {
                     </svg>
                     <span>Meridian Crew</span>
                 </Link>
+
+                {/* Outside the collapsible menu, so it is visible on phones too. */}
+                <ConnectionStatus />
 
                 <button
                     type="button"

@@ -2,11 +2,11 @@
 <!--
   Site-wide 404 page for GitHub Pages (copied to the site root by
   .github/workflows/deploy.yml). GitHub Pages only uses a 404.html at the
-  root, so deep links into the SPAs (e.g. /react-fall-2026/react-task-06/crew/3)
+  root, so deep links into the SPAs (e.g. /react-fall-2026/react-task-07/crew/3)
   end up here on refresh. For those paths we bounce to the app's index.html with
   the original path in ?__spa=…; a small script in index.html puts the real URL
   back before React Router reads it. Every other path gets a normal 404.
-  Task 05 and Task 06 both use this, so the list below has both apps.
+  Tasks 05, 06 and 07 all use this, so the list below has all three apps.
 -->
 <html lang="en">
 <head>
@@ -14,7 +14,7 @@
     <title>Page not found</title>
     <script>
         (function () {
-            var apps = ['/react-fall-2026/react-task-05', '/react-fall-2026/react-task-06'];
+            var apps = ['/react-fall-2026/react-task-05', '/react-fall-2026/react-task-06', '/react-fall-2026/react-task-07'];
             var path = window.location.pathname;
             for (var i = 0; i < apps.length; i++) {
                 var app = apps[i];

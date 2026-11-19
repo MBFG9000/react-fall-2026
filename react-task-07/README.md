@@ -1,14 +1,99 @@
-# Task 6 — Server Data, Caching & Firebase Authentication: Meridian Crew
+# Task 7 — PWA: Meridian Crew
+
+The Task 06 app (routes, filters, pagination, dashboard, API cache, Firebase auth) turned into an
+installable Progressive Web App that works offline. Everything from Task 06 still works the same way.
+
+**Live:** https://mbfg9000.github.io/react-fall-2026/react-task-07/
+
+## What was added
+
+| Requirement | Where |
+| --- | --- |
+| Manifest (`name`, `short_name`, `start_url`, `scope`, `display: standalone`, colours, 192/512 icons) | `public/manifest.json`, `public/icons/`, linked in `index.html` |
+| Service Worker (`install`, `activate`, `fetch`, `message`) | `src/pwa/sw.js` (template) → `dist/sw.js` (built by a small plugin in `vite.config.js`) |
+| Registration + "new version available" banner with **Update** | `src/components/UpdateBanner.jsx` |
+| Public API with list + details (real network requests) | `src/services/newsApi.js`, `/news`, `/news/:articleId` ([Spaceflight News API](https://api.spaceflightnewsapi.net/v4/docs/)) |
+| "You are viewing cached data" notice | `src/components/CachedDataNotice.jsx` |
+| Online / offline indicator | `src/components/ConnectionStatus.jsx` (in the NavBar) |
+| `/offline` page with **Retry Connection** | `src/pages/OfflinePage.jsx` |
+| Mobile rules (touch sizes, 320px, landscape menu) | `src/styles/pwa.css` |
+
+### Service Worker
+
+**Pre-cache (install).** The Vite plugin `serviceWorker()` in `vite.config.js` reads the file names of
+the build (they contain content hashes) and writes them into `sw.js`: the index page (app shell), every
+JS/CSS chunk, the manifest and the icons. The `/offline` page is a React route in the main bundle, so it
+is part of the pre-cache too. Files are fetched with `cache: 'reload'`, so an update never stores a stale
+`index.html` from the browser's HTTP cache.
+
+**Versioned caches (activate).** All caches start with `react-task-07-` (the GitHub Pages origin is
+shared with the other tasks):
+
+| Cache | Strategy | Limit |
+| --- | --- | --- |
+| `react-task-07-precache-<build hash>` | pre-cached app shell | new one for every deploy |
+| `react-task-07-static-v1` | **cache-first**: icons, images, fonts, stylesheets | 60 entries |
+| `react-task-07-api-v1` | **network-first**: news list and details | 50 entries |
+| `react-task-07-pages-v1` | list of visited routes (for offline navigation) | 50 entries |
+
+On `activate` every `react-task-07-*` cache that is not in this list is deleted (e.g. the previous
+precache), then `clients.claim()` takes over open tabs. When a cache is over its limit, the oldest
+entries are removed.
+
+**Updates.** The build hash is the SW version, so every deploy produces a different `sw.js`. The
+browser installs it in the background (the app also calls `registration.update()` every 30 minutes).
+The new worker does **not** call `skipWaiting()` by itself: it waits, and the banner
+*"A new version of Meridian Crew is available"* appears. **Update** sends `SKIP_WAITING`, the new worker
+activates, removes the old caches, and the page reloads once on `controllerchange`. No manual clearing of
+storage is needed.
+
+**Fetch routing.**
+
+- Navigations: network-first. Offline, the pre-cached shell is served for `/`, `/offline` and every
+  route that was visited before (the app reports each route to the SW with `postMessage`, because router
+  navigations never reach the SW). Any other route redirects to `/offline?from=<route>`.
+- `api.spaceflightnewsapi.net`: network-first (with `cache: 'no-cache'`, so the browser HTTP cache
+  cannot hide that we are offline). A cached answer gets an `X-From-Cache` header, and the page shows
+  *"You are offline. Showing saved data from …"*. Offline without a saved copy the SW answers
+  `503 + X-Offline`, and the news page opens `/offline`.
+- Own files, images, fonts: cache-first.
+- **Everything else is not touched**: Firebase Auth, Google sign-in and token requests go straight to the
+  network and are never written to a cache. Only `GET` requests are handled at all.
+- Failed requests return a small error response instead of throwing, and the pages show an error with
+  **Try again**.
+
+The crew roster itself does not need the SW for its data: the course fake API keeps it in
+`localStorage`, so the roster, member pages and dashboard work offline anyway (the SW only makes their
+code available).
+
+### Offline page
+
+`/offline` explains which page could not be opened, has **Retry Connection** (a full page load, so it
+really tries the network; offline it shows *"Still offline"*), and goes back to the wanted page by itself
+when the `online` event fires.
+
+### Try it
+
+1. Open the live site in Chrome → the install icon in the address bar (or *Install app* in the menu).
+2. Open **News**, an article, and **Crew**. DevTools → Application → Service Workers → *Offline*.
+3. Reload `/news` and the article: they open with the yellow *saved data* notice. The pill in the
+   navigation bar says *Offline*.
+4. Open `/dashboard` (if you never visited it) or page 3 of the news → the offline page. Turn the network
+   back on → it returns to the page by itself.
+5. Deploy a change (or edit `dist/sw.js` under `vite preview`) → the update banner appears.
+
+`npm run build && npm run preview` serves the production build with the Service Worker at
+`http://localhost:4173/react-fall-2026/react-task-07/` (`npm run dev` does not register it).
+
+---
+
+# Task 6 — Server Data, Caching & Firebase Authentication
 
 The Task 05 app (routes, filters, pagination, dashboard) with three additions:
 
 - a cache for API responses, cleared after every change to the data;
 - environment variables for the Firebase config;
 - Firebase Authentication: email/password and Google, with a protected `/profile` page.
-
-Everything from Task 05 still works the same way.
-
-**Live:** https://mbfg9000.github.io/react-fall-2026/react-task-06/
 
 ## Setup
 
@@ -29,7 +114,8 @@ Everything from Task 05 still works the same way.
 ```bash
 npm install
 npm run dev      # dev server
-npm run build    # production build into dist/ (base /react-fall-2026/react-task-06/)
+npm run build    # production build into dist/ (base /react-fall-2026/react-task-07/)
+npm run preview  # serve the build, with the Service Worker
 ```
 
 ## Routes
@@ -44,6 +130,9 @@ npm run build    # production build into dist/ (base /react-fall-2026/react-task
 | `/login` | Email/password login and Google sign-in | everyone |
 | `/signup` | Email, password, confirm password, with validation | everyone |
 | `/profile` | The user's email and UID, Log out | **signed-in users only** |
+| `/news` | Space news list (public API, cached offline) | everyone |
+| `/news/:articleId` | Article details (public API, cached offline) | everyone |
+| `/offline` | Offline page with Retry Connection | everyone |
 | `*` | 404 | everyone |
 
 ## Structure
@@ -136,5 +225,5 @@ from GitHub repository secrets with the same names as in `.env.example`
 (**Settings → Secrets and variables → Actions**).
 
 GitHub Pages serves one `404.html` for the whole site. The workflow copies `gh-pages-404.html`
-there; for paths under `/react-task-05/` and `/react-task-06/` it redirects back to the app, so
-deep links like `/react-task-06/profile` survive a refresh.
+there; for paths under `/react-task-05/`, `/react-task-06/` and `/react-task-07/` it redirects back to
+the app, so deep links like `/react-task-07/profile` survive a refresh.

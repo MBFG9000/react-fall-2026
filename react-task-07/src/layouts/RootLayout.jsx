@@ -1,10 +1,11 @@
 import { Suspense, useEffect, useState } from 'react';
-import { Outlet, ScrollRestoration } from 'react-router';
+import { Outlet, ScrollRestoration, useLocation } from 'react-router';
 import NavBar from '../components/NavBar.jsx';
 import Notice from '../components/Notice.jsx';
 import PageLoader from '../components/PageLoader.jsx';
 import RequestLog from '../components/RequestLog.jsx';
 import SimulatorPanel from '../components/SimulatorPanel.jsx';
+import UpdateBanner from '../components/UpdateBanner.jsx';
 
 // Shared shell for every page: navigation on top, the current page in the
 // middle (<Outlet />), the fake-server tools at the bottom.
@@ -19,6 +20,13 @@ export default function RootLayout() {
 
     // Request log (same as Task 04). Pages add entries with addLog(setLog, ...).
     const [log, setLog] = useState([]);
+
+    // Tell the Service Worker which page is shown, so it can open it offline
+    // later (router navigations do not reach the Service Worker by themselves).
+    const { pathname } = useLocation();
+    useEffect(() => {
+        navigator.serviceWorker?.controller?.postMessage({ type: 'PAGE_VISITED', path: pathname });
+    }, [pathname]);
 
     // Auto-hide the notice. Cleanup cancels the old timer when a new notice replaces it.
     useEffect(() => {
@@ -41,6 +49,8 @@ export default function RootLayout() {
                 Skip to content
             </a>
             <NavBar />
+            {/* Registers the Service Worker; shows "new version available" with an Update button. */}
+            <UpdateBanner />
 
             <main id="content" className="page">
                 {/* Lazy pages suspend here while their code downloads. */}

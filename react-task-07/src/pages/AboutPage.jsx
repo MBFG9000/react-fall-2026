@@ -12,6 +12,9 @@ const ROUTES = [
     ['/login', 'Log in', 'Email/password and Google sign-in (lazy)'],
     ['/signup', 'Sign up', 'New account with email and password (lazy)'],
     ['/profile', 'Profile', 'Signed-in users only: email, UID, log out (lazy)'],
+    ['/news', 'Space news', 'Public API list, cached for offline reading (lazy)'],
+    ['/news/:articleId', 'Article', 'Public API details, cached for offline reading (lazy)'],
+    ['/offline', 'Offline', 'Shown when a page cannot be opened without a connection'],
     ['*', 'Not found', 'Any other address'],
 ];
 
@@ -36,7 +39,7 @@ export default function AboutPage() {
             <PageHeader
                 eyebrow="About"
                 title="About this project"
-                subtitle="Task 06 of the React Fall 2026 course: server data caching and Firebase Authentication."
+                subtitle="Task 07 of the React Fall 2026 course: an installable, offline-ready PWA (on top of caching and Firebase Authentication)."
             >
                 <Link to="/crew" className="btn btn--primary">
                     Go to the crew roster
@@ -126,7 +129,7 @@ export default function AboutPage() {
                     <section className="panel about__stack">
                         <h2 className="panel__title">Built with</h2>
                         <ul className="chips">
-                            {['React 19', 'React Router 8', 'Firebase Auth', 'Vite 8', 'Plain CSS', 'GitHub Pages'].map((tool) => (
+                            {['React 19', 'React Router 8', 'Firebase Auth', 'Vite 8', 'Plain CSS', 'Service Worker', 'GitHub Pages'].map((tool) => (
                                 <li key={tool} className="chip">
                                     {tool}
                                 </li>

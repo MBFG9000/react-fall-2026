@@ -30,6 +30,7 @@ jobs:
             react-task-04/package-lock.json
             react-task-05/package-lock.json
             react-task-06/package-lock.json
+            react-task-07/package-lock.json
 
       - name: Build react-task-02
         working-directory: react-task-02
@@ -70,6 +71,20 @@ jobs:
           npm ci
           npm run build
 
+      # Same Firebase secrets as Task 06 (the PWA keeps the auth features).
+      - name: Build react-task-07
+        working-directory: react-task-07
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+        run: |
+          npm ci
+          npm run build
+
       - name: Assemble site
         run: |
           mkdir -p _site
@@ -80,8 +95,9 @@ jobs:
           cp -r react-task-04/dist _site/react-task-04
           cp -r react-task-05/dist _site/react-task-05
           cp -r react-task-06/dist _site/react-task-06
-          # Site-wide 404 page: lets Task 05 and Task 06 deep links survive a refresh
-          cp react-task-06/gh-pages-404.html _site/404.html
+          cp -r react-task-07/dist _site/react-task-07
+          # Site-wide 404 page: lets Task 05, 06 and 07 deep links survive a refresh
+          cp react-task-07/gh-pages-404.html _site/404.html
           cat > _site/index.html <<'HTML'
           <!doctype html>
           <meta charset="utf-8">
@@ -95,6 +111,7 @@ jobs:
             <li><a href="react-task-04/">Task 04 — Meridian Crew Roster (Effects &amp; API)</a></li>
             <li><a href="react-task-05/">Task 05 — Meridian Crew (Routing &amp; Architecture)</a></li>
             <li><a href="react-task-06/">Task 06 — Meridian Crew (Caching &amp; Firebase Auth)</a></li>
+            <li><a href="react-task-07/">Task 07 — Meridian Crew (PWA)</a></li>
           </ul>
           HTML
 
