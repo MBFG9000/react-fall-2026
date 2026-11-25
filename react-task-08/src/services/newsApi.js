@@ -1,4 +1,5 @@
-// Public Spaceflight News API (no key, no user data). Unlike the crew API, these
+// Public Spaceflight News API (no key, no user data). Only the news thunks
+// (src/features/news/newsThunks.js) call it. Unlike the crew API, these
 // are real network requests, so the Service Worker caches them (network-first)
 // and they stay readable offline. See src/pwa/sw.js.
 const API_URL = 'https://api.spaceflightnewsapi.net/v4/articles/';
@@ -11,10 +12,12 @@ export const NEWS_PAGE_SIZE = 12;
  * answered with a saved copy because the network was not available.
  * Throws an Error; `error.offline` is true when we are offline and the page was never cached.
  */
-async function request(url) {
+async function request(url, signal) {
     let response;
     try {
-        response = await fetch(url);
+        // `signal` comes from the Redux thunk: when the page is left before the
+        // answer arrives, the thunk is aborted and so is the fetch.
+        response = await fetch(url, { signal });
     } catch {
         // Without a Service Worker (dev mode) an offline fetch just fails.
         const error = new Error('Network error. Check your connection.');
@@ -44,11 +47,11 @@ async function request(url) {
 }
 
 /** One page of articles: `data` is `{ count, results }`. */
-export function getArticles(page) {
+export function getArticles(page, signal) {
     const offset = (page - 1) * NEWS_PAGE_SIZE;
-    return request(`${API_URL}?limit=${NEWS_PAGE_SIZE}&offset=${offset}`);
+    return request(`${API_URL}?limit=${NEWS_PAGE_SIZE}&offset=${offset}`, signal);
 }
 
-export function getArticle(id) {
-    return request(`${API_URL}${encodeURIComponent(id)}/`);
+export function getArticle(id, signal) {
+    return request(`${API_URL}${encodeURIComponent(id)}/`, signal);
 }

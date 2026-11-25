@@ -1,4 +1,5 @@
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Outlet, ScrollRestoration, useLocation } from 'react-router';
 import NavBar from '../components/NavBar.jsx';
 import Notice from '../components/Notice.jsx';
@@ -6,20 +7,17 @@ import PageLoader from '../components/PageLoader.jsx';
 import RequestLog from '../components/RequestLog.jsx';
 import SimulatorPanel from '../components/SimulatorPanel.jsx';
 import UpdateBanner from '../components/UpdateBanner.jsx';
+import { noticeDismissed, selectNotice } from '../features/notifications/notificationsSlice.js';
 
 // Shared shell for every page: navigation on top, the current page in the
 // middle (<Outlet />), the fake-server tools at the bottom.
+// The data pages used to share through <Outlet context> (notify, setLog,
+// dataVersion) now lives in the Redux store, so pages read it themselves.
 export default function RootLayout() {
-    // The toast at the bottom. It lives here (not in a page) so a message such
-    // as "X was removed" is still visible after redirecting to another page.
-    const [notice, setNotice] = useState(null);
-
-    // Goes up by one when "Reset data" is pressed. Pages list it in their
-    // effect dependencies, so they load the data again.
-    const [dataVersion, setDataVersion] = useState(0);
-
-    // Request log (same as Task 04). Pages add entries with addLog(setLog, ...).
-    const [log, setLog] = useState([]);
+    const dispatch = useDispatch();
+    // The toast at the bottom (notifications slice). Pages show it with
+    // dispatch(noticeShown(...)), and it is still visible after a redirect.
+    const notice = useSelector(selectNotice);
 
     // Tell the Service Worker which page is shown, so it can open it offline
     // later (router navigations do not reach the Service Worker by themselves).
@@ -31,17 +29,9 @@ export default function RootLayout() {
     // Auto-hide the notice. Cleanup cancels the old timer when a new notice replaces it.
     useEffect(() => {
         if (!notice) return;
-        const timer = setTimeout(() => setNotice(null), 4000);
+        const timer = setTimeout(() => dispatch(noticeDismissed()), 4000);
         return () => clearTimeout(timer);
-    }, [notice]);
-
-    function handleDataReset() {
-        setDataVersion((v) => v + 1);
-        setNotice({ tone: 'success', text: 'Crew data restored.' });
-    }
-
-    // Everything a page needs from the layout. Pages read it with useOutletContext().
-    const outletContext = { notify: setNotice, setLog, dataVersion };
+    }, [notice, dispatch]);
 
     return (
         <>
@@ -55,7 +45,7 @@ export default function RootLayout() {
             <main id="content" className="page">
                 {/* Lazy pages suspend here while their code downloads. */}
                 <Suspense fallback={<PageLoader />}>
-                    <Outlet context={outletContext} />
+                    <Outlet />
                 </Suspense>
             </main>
 
@@ -65,13 +55,13 @@ export default function RootLayout() {
                         <p className="footer__note">
                             Data comes from a simulated API with random delays and errors, stored in localStorage.
                         </p>
-                        <SimulatorPanel onReset={handleDataReset} />
+                        <SimulatorPanel />
                     </div>
-                    <RequestLog entries={log} onClear={() => setLog([])} />
+                    <RequestLog />
                 </div>
             </footer>
 
-            <Notice notice={notice} onDismiss={() => setNotice(null)} />
+            <Notice notice={notice} onDismiss={() => dispatch(noticeDismissed())} />
 
             {/* Scroll to top on new pages, restore the position on Back/Forward. */}
             <ScrollRestoration />

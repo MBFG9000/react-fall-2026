@@ -1,23 +1,19 @@
-// All API requests of the app live here (same idea as crewApi.js in Task 04).
-// Pages call these functions and never touch fakeApi.js or localStorage directly.
+// Every request to the crew API lives here. Only the Redux thunks
+// (src/features/crew/crewThunks.js) call these functions; components never
+// touch fakeApi.js or localStorage directly.
+//
+// There is no cache in this file any more: the Redux store keeps the answers
+// (see crewSlice.js), and the thunks decide when a new request is needed.
 import { createItem, deleteItem, getItem, getItemsList, updateItem } from '../api/fakeApi.js';
 import { API_CONFIG, DATA_KEY } from '../api/settings.js';
 import { initialDataSample } from '../api/initial-data-sample.js';
-import { cachedRequest, invalidateCache } from './cache.js';
 
-// Every crew cache key starts with this, e.g. "crew:list?page=1&limit=6" or "crew:member:5".
-const CREW_KEY = 'crew:';
-
-/** Forget all cached crew data (used by the Reload buttons and after every change). */
-export function clearCrewCache() {
-    invalidateCache(CREW_KEY);
-}
-
-// ---------- Queries (cached) ----------
+// ---------- Queries ----------
 
 /**
  * Builds the query string the fake API understands. Empty values are left
  * out, so `{ search: '', page: 2, limit: 6 }` becomes `?page=2&limit=6`.
+ * The same string is the key of the list in the Redux store.
  */
 export function buildCrewQuery({ search, department, status, sort, page, limit }) {
     const params = new URLSearchParams();
@@ -30,44 +26,39 @@ export function buildCrewQuery({ search, department, status, sort, page, limit }
     return `?${params}`;
 }
 
-/** One page of crew: `{ data, total, page, limit, totalPages }`. Filtering happens in the API. */
-export function getCrewList(query) {
-    return cachedRequest(`${CREW_KEY}list${query}`, () => getItemsList(query));
-}
-
 // The fake API has no "give me everything" option, so the dashboard asks for
 // one page that is big enough to hold the whole roster.
 const ALL_LIMIT = 1000;
 
-/** Every crew member of a department ('' = all departments), filtered by the API. */
-export function getAllCrew(department) {
-    const query = buildCrewQuery({ department, page: 1, limit: ALL_LIMIT });
-    return getCrewList(query).then((result) => result.data);
+/** Query for every crew member of a department ('' = all departments). Used by the dashboard. */
+export function buildAllCrewQuery(department) {
+    return buildCrewQuery({ department, page: 1, limit: ALL_LIMIT });
 }
 
-export function getCrewMember(id) {
-    return cachedRequest(`${CREW_KEY}member:${id}`, () => getItem(id));
+/** One page of crew: `{ data, total, page, limit, totalPages }`. Filtering happens in the API. */
+export function getCrewList(query) {
+    return getItemsList(query);
 }
 
-/** fakeApi rejects with Error("Item not found") when the id does not exist. */
-export function isNotFoundError(error) {
-    return error?.message === 'Item not found';
+/** One crew member. Rejects with `error.notFound = true` when the id does not exist. */
+export async function getCrewMember(id) {
+    try {
+        return await getItem(id);
+    } catch (error) {
+        // fakeApi rejects with Error("Item not found") for an unknown id.
+        if (error.message === 'Item not found') error.notFound = true;
+        throw error;
+    }
 }
 
 // ---------- Mutations ----------
-// A change can affect every cached list, the dashboard and the member itself,
-// so after each one the whole crew cache is cleared.
 
-export async function updateCrewMember(id, changes) {
-    const updated = await updateItem(id, { ...changes, updatedAt: new Date().toISOString() });
-    clearCrewCache();
-    return updated;
+export function updateCrewMember(id, changes) {
+    return updateItem(id, { ...changes, updatedAt: new Date().toISOString() });
 }
 
-export async function deleteCrewMember(id) {
-    const result = await deleteItem(id);
-    clearCrewCache();
-    return result;
+export function deleteCrewMember(id) {
+    return deleteItem(id);
 }
 
 // fakeApi's createItem only stores `name` and `description`, and the API must
@@ -82,15 +73,12 @@ export async function createCrewMember(data) {
     } catch (error) {
         await deleteItem(created.id).catch(() => {});
         throw error;
-    } finally {
-        clearCrewCache();
     }
 }
 
 // Restores the seed data. This is the "backend" side, so it may use localStorage.
 export function resetDatabase() {
     localStorage.setItem(DATA_KEY, JSON.stringify(initialDataSample));
-    clearCrewCache();
 }
 
 // ---------- Network simulation ----------

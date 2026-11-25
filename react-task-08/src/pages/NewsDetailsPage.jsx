@@ -1,43 +1,24 @@
-import { useEffect, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router';
+import { useEffect } from 'react';
+import { Link, useParams } from 'react-router';
 import CachedDataNotice from '../components/CachedDataNotice.jsx';
 import { DetailsSkeleton } from '../components/Skeletons.jsx';
 import StateMessage from '../components/StateMessage.jsx';
-import { getArticle } from '../services/newsApi.js';
+import { useNewsArticle } from '../hooks/useNews.js';
 import { formatDateTime } from '../utils/format.js';
 import { setPageTitle } from '../utils/pageTitle.js';
 
 export default function NewsDetailsPage() {
     const { articleId } = useParams();
-
-    // status: 'loading' | 'success' | 'error'
-    const [request, setRequest] = useState({ id: null, status: 'loading', result: null, error: null });
-    const [reloadKey, setReloadKey] = useState(0);
+    const { article, fromCache, cachedAt, status, error, retry } = useNewsArticle(articleId);
+    const title = article?.title;
 
     useEffect(() => {
-        let ignore = false;
-        getArticle(articleId)
-            .then((result) => {
-                if (ignore) return;
-                setRequest({ id: articleId, status: 'success', result, error: null });
-                setPageTitle(result.data.title);
-            })
-            .catch((error) => {
-                if (!ignore) setRequest({ id: articleId, status: 'error', result: null, error });
-            });
-        return () => {
-            ignore = true;
-        };
-    }, [articleId, reloadKey]);
+        if (title) setPageTitle(title);
+    }, [title]);
 
-    const isCurrent = request.id === articleId;
     let content;
 
-    if (!isCurrent) {
-        content = <DetailsSkeleton />;
-    } else if (request.status === 'error' && request.error.offline) {
-        return <Navigate to={`/offline?from=${encodeURIComponent(`/news/${articleId}`)}`} replace />;
-    } else if (request.status === 'error' && request.error.notFound) {
+    if (status === 'error' && error.notFound) {
         content = (
             <StateMessage tone="warning" title="Article not found" text="It may have been removed from the feed.">
                 <Link to="/news" className="btn btn--primary">
@@ -45,16 +26,18 @@ export default function NewsDetailsPage() {
                 </Link>
             </StateMessage>
         );
-    } else if (request.status === 'error') {
+    } else if (status === 'error' && !error.offline && !article) {
         content = (
-            <StateMessage tone="error" title="Could not load the article" text={request.error.message}>
-                <button type="button" className="btn btn--primary" onClick={() => setReloadKey((k) => k + 1)}>
+            <StateMessage tone="error" title="Could not load the article" text={error.message}>
+                <button type="button" className="btn btn--primary" onClick={retry}>
                     Try again
                 </button>
             </StateMessage>
         );
+    } else if (!article) {
+        // Loading, or offline and about to open /offline.
+        content = <DetailsSkeleton />;
     } else {
-        const { data: article, fromCache, cachedAt } = request.result;
         content = (
             <article className="panel news-article">
                 {fromCache && <CachedDataNotice cachedAt={cachedAt} />}

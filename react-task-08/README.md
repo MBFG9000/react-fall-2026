@@ -1,9 +1,165 @@
+# Task 8 — Redux Toolkit: Meridian Crew
+
+The Task 07 app (routes, filters, pagination, dashboard, CRUD, Firebase auth, PWA, offline) refactored to
+keep its server data in a **Redux Toolkit** store. Every feature from the earlier tasks still works the
+same way. No other state management library is used.
+
+**Live:** https://mbfg9000.github.io/react-fall-2026/react-task-08/
+
+## Structure
+
+```
+src/
+  store/index.js            configureStore: the one store (given to React by <Provider> in main.jsx)
+  store/runRequest.js       shared thunk body: call the API, write the request log, return data or rejectWithValue
+  features/
+    crew/crewSlice.js       crew members (entity adapter), list/details request state, mutations in flight
+    crew/crewThunks.js      fetchCrewList, fetchCrewMember, createCrewMember, updateCrewMember, deleteCrewMember, resetCrewData
+    crew/crewSelectors.js   selectors of the crew feature (2 memoized)
+    news/newsSlice.js       articles (entity adapter) + list pages + article request state
+    news/newsThunks.js      fetchNewsPage, fetchNewsArticle
+    news/newsSelectors.js   selectors of the news feature (1 memoized)
+    requestLog/requestLogSlice.js       footer request log + selectors (1 memoized)
+    notifications/notificationsSlice.js the toast ("X was removed")
+  hooks/                    custom hooks between pages and the store:
+                            useCrewList, useCrewStats, useCrewMember, useNewsPage / useNewsArticle, useLastValue
+  services/crewApi.js       crew API requests (fake API); newsApi.js: Spaceflight News API
+  context/AuthContext.jsx   authentication (unchanged)
+  pages/, components/       UI
+```
+
+The layers only talk in one direction: **UI component → custom hook → thunk → API service**.
+Components never call a service, and services know nothing about Redux. Mutations are dispatched from
+the pages (`dispatch(updateCrewMember(...)).unwrap()`), because the page decides what happens next
+(close the form, show a toast, navigate).
+
+### What is *not* in Redux
+
+| State | Where | Why |
+| --- | --- | --- |
+| Signed-in user, login/signup/logout | `AuthContext` | Firebase keeps the session; the context only mirrors `onAuthStateChanged`. |
+| Search, filters, sort, page | URL (`useSearchParams`) | Shareable links, Back/Forward. The query string is used as the store key instead of copying the filters. |
+| Typed search text (debounce), open modal, form fields, "log expanded", network preset | `useState` in the component | Temporary UI state that nobody else needs. |
+
+## Slices
+
+| Slice | State | Why it is global |
+| --- | --- | --- |
+| `crew` | `ids` + `entities` (one copy of every member), `lists[query]`, `details[id]`, `pendingById[id]`, `version` | Shared by the roster, member pages and the dashboard. |
+| `news` | `ids` + `entities` (articles), `pages[page]`, `details[id]` | Pages already opened are shown again without a request; an article opened from the list is shown at once. |
+| `requestLog` | `entries` | Written by every crew thunk, read by the footer on every page. |
+| `notifications` | `notice` | A page shows "X was removed" right before navigating away; the toast must survive the navigation. |
+
+**No duplicated state.** Members and articles are normalized with `createEntityAdapter`: a list only keeps
+ids (`lists["?sort=name&page=1&limit=6"].ids = [3, 1, 7, …]`), and the dashboard is just another list
+(`?page=1&limit=1000`). So an edit on the member page shows up on the roster card and in the dashboard
+without a second copy to keep in sync. Values like the dashboard statistics are not stored; selectors
+calculate them.
+
+Each list / details entry stores its request state:
+`{ status: 'idle' | 'loading' | 'success' | 'error' | 'not-found', error, requestId, version }`.
+
+## Thunks
+
+| Thunk | Kind | What it does |
+| --- | --- | --- |
+| `fetchCrewList({ query, force })` | list | One page of the roster (also the dashboard, with a big `limit`). |
+| `fetchCrewMember({ id, force })` | details | One member. An unknown id ends in `status: 'not-found'`. |
+| `createCrewMember(data)` | mutation | POST + PATCH (as in Task 06). |
+| `updateCrewMember({ id, changes, action })` | mutation / business operation | Edit, or *Report for duty / Stand down* (`action: 'status'`). |
+| `deleteCrewMember({ id })` | mutation | Remove. |
+| `resetCrewData()` | business operation | "Reset data" in the footer. |
+| `fetchNewsPage({ page, force })` | list | One Spaceflight News page. |
+| `fetchNewsArticle({ id, force })` | details | One article. |
+
+All of them handle **pending / fulfilled / rejected in `extraReducers`** of their slice. Errors are turned
+into plain objects with `rejectWithValue` (`{ message, notFound, offline }`), because Redux state must be
+serializable and a thrown `Error` would lose the custom fields.
+
+**Loading, errors, empty results.** `pending` → `loading` (first load: skeleton; with old results: the old
+cards stay on screen, dimmed — `useLastValue`), `rejected` → error message with **Try again**, an empty
+`ids` list → "no matches" with **Clear filters** / "the roster is empty".
+
+**Retries.** **Try again** and **Reload** dispatch the thunk with `force: true`.
+
+**Unnecessary requests.** Every query thunk has a `condition`: if the store already has a fresh answer
+(`status === 'success'` and loaded at the current `version`), the thunk does not start at all. Going back
+to page 1, or opening the dashboard twice, shows the data at once. A news page that came from the Service
+Worker's offline copy is not "fresh", so the next visit tries the network again.
+
+**Stale requests.** The hooks start the thunk in an effect and abort it in the cleanup
+(`const request = dispatch(fetchCrewList(...)); return () => request.abort();`). Each entry also remembers
+the `requestId` of its newest request, and `fulfilled` / `rejected` of an older request are ignored. So:
+
+- typing again / changing a filter / opening another member before the answer → the old request is aborted;
+- pressing Reload while a request is running → only the newest answer is used;
+- in both cases the request log shows *Ignored (stale)*. In development StrictMode runs every effect twice,
+  so the first request of each page is always aborted (same as in the earlier tasks).
+
+**Refreshing after mutations.** `crew.version` goes up after every create, update, delete and reset. Every
+entry remembers the version it was loaded at, and the crew hooks have `version` in their effect
+dependencies: the open page loads again at once, and every other list and the dashboard load again the
+next time they are shown. The mutation's own answer is stored directly (the edited member, the new member,
+"not found" for the removed one), so the member page does not ask the server for something it just got.
+
+## Selectors
+
+All reads go through selectors (`useSelector((state) => selectX(state, arg))`):
+
+| Selector | Memoized | Returns |
+| --- | --- | --- |
+| `selectCrewListResult(state, query)` | **yes** (`createSelector`) | `{ members, total, page, totalPages }`: the ids of a list turned into members |
+| `selectCrewStats(state, query)` | **yes** | dashboard statistics (`computeCrewStats`), recalculated only when the list or its members change |
+| `selectNewsPageResult(state, page)` | **yes** | `{ articles, count, totalPages, fromCache, cachedAt }` |
+| `selectStaleCount(state)` | **yes** | number of stale requests in the log |
+| `selectCrewMemberById`, `selectCrewEntities` | (entity adapter) | one member / all members by id |
+| `selectCrewListEntry`, `selectCrewDetailsEntry`, `selectPendingAction`, `selectCrewVersion` | no (plain lookups) | request state |
+| `selectArticleById`, `selectNewsPageEntry`, `selectArticleEntry`, `selectLogEntries`, `selectNotice` | no | news / log / toast |
+
+Memoization matters here: `selectCrewListResult` builds a new array from ids. Without `createSelector`
+every `useSelector` call would return a new object and re-render the page after any action. With it, the
+result stays the same object until the list or the members change.
+
+## Custom hooks
+
+| Hook | Used by | Returns |
+| --- | --- | --- |
+| `useCrewList(query)` | `CrewListPage` | `{ result, status, error, reload }` |
+| `useCrewStats(department)` | `DashboardPage` | `{ stats, status, error, reload }` (built on `useCrewList`) |
+| `useCrewMember(id)` | `CrewDetailsPage` | `{ member, status, error, pendingAction, retry }` |
+| `useNewsPage(page)`, `useNewsArticle(id)` | news pages | data + `retry`; offline without a saved copy they open `/offline` |
+| `useLastValue(value)` | the crew hooks | keeps the previous results while new ones load |
+
+## What stayed the same
+
+- Authentication in `AuthContext`, `ProtectedRoute` for `/profile`, persistent session, Google sign-in.
+- URL search params, 350 ms debounce of the search box, filters, sorting, pagination, `?page` out of
+  range → last page.
+- CRUD: create, edit, duty status, remove (the "Saving… / Updating… / Removing…" buttons now come from
+  `crew.pendingById`).
+- PWA: manifest, Service Worker pre-cache and runtime caches, update banner, offline page, cached-data
+  notice. The news thunks pass the abort `signal` to `fetch`.
+- Request log and network presets in the footer.
+
+The in-memory cache of Task 06 (`services/cache.js`) was removed: the store is the cache now, and keeping
+both would be the duplicated state this task asks to avoid.
+
+## Try it
+
+1. Open the roster, go to page 2, then back to page 1: page 1 appears at once and the log shows no new request.
+2. Pick **Race demo** in the footer and type fast in the search: older requests show *Ignored (stale)*.
+3. Open a member from the roster: the card data is shown at once, the full record loads in the background.
+   Press **Stand down** and go back: the roster loads again and shows the new status. So does the dashboard.
+4. Pick **Flaky**: errors appear with **Try again**, which retries.
+5. With the Redux DevTools browser extension you can see every `crew/fetchList/pending → fulfilled` action
+   and the state.
+
+---
+
 # Task 7 — PWA: Meridian Crew
 
 The Task 06 app (routes, filters, pagination, dashboard, API cache, Firebase auth) turned into an
 installable Progressive Web App that works offline. Everything from Task 06 still works the same way.
-
-**Live:** https://mbfg9000.github.io/react-fall-2026/react-task-08/
 
 ## What was added
 

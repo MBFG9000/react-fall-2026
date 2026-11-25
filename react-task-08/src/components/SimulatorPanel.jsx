@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import { applyNetworkPreset, NETWORK_PRESETS, resetDatabase } from '../services/service.js';
+import { useDispatch } from 'react-redux';
+import { resetCrewData } from '../features/crew/crewThunks.js';
+import { noticeShown } from '../features/notifications/notificationsSlice.js';
+import { applyNetworkPreset, NETWORK_PRESETS } from '../services/crewApi.js';
 
 // Controls for the fake server: network speed / error rate and "reset data".
 // Lives in RootLayout, so the chosen preset stays while moving between pages.
-export default function SimulatorPanel({ onReset }) {
+export default function SimulatorPanel() {
+    const dispatch = useDispatch();
     const [preset, setPreset] = useState('normal');
 
     // Sync an external system (the fake API config) with React state.
@@ -11,10 +15,11 @@ export default function SimulatorPanel({ onReset }) {
         applyNetworkPreset(preset);
     }, [preset]);
 
-    function handleReset() {
+    async function handleReset() {
         if (!window.confirm('Restore the original crew? All changes will be lost.')) return;
-        resetDatabase();
-        onReset(); // tells the layout, which makes the open page load its data again
+        // The thunk restores the data and raises the crew `version`, so the open page loads it again.
+        await dispatch(resetCrewData()).unwrap();
+        dispatch(noticeShown('success', 'Crew data restored.'));
     }
 
     return (

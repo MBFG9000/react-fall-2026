@@ -1,10 +1,16 @@
 import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { requestLogCleared, selectLogEntries, selectStaleCount } from '../features/requestLog/requestLogSlice.js';
 
 const OUTCOME_TEXT = { ok: 'OK', error: 'Failed', stale: 'Ignored (stale)' };
 
-export default function RequestLog({ entries, onClear }) {
+// The crew thunks write every finished request into the requestLog slice;
+// this component only shows it. Open / closed is temporary UI state, so it stays local.
+export default function RequestLog() {
+    const dispatch = useDispatch();
+    const entries = useSelector(selectLogEntries);
+    const staleCount = useSelector(selectStaleCount);
     const [isOpen, setIsOpen] = useState(false);
-    const staleCount = entries.filter((e) => e.outcome === 'stale').length;
 
     return (
         <section className="log">
@@ -19,7 +25,7 @@ export default function RequestLog({ entries, onClear }) {
                     </span>
                 </button>
                 {entries.length > 0 && (
-                    <button type="button" className="btn btn--ghost btn--small" onClick={onClear}>
+                    <button type="button" className="btn btn--ghost btn--small" onClick={() => dispatch(requestLogCleared())}>
                         Clear
                     </button>
                 )}

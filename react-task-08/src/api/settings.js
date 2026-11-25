@@ -5,7 +5,7 @@ export const DATA_KEY = "react-task-08-crew";
 
 //configs for fake API
 // fakeApi.js reads these values on every request, so the network presets
-// (service.js) can change them at runtime.
+// (services/crewApi.js) can change them at runtime.
 export const API_CONFIG = {
   minDelay: 500,
   maxDelay: 3000,

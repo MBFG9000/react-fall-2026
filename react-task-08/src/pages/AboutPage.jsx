@@ -23,8 +23,11 @@ const FOLDERS = [
     ['pages/', 'One component per route'],
     ['components/', 'Reusable UI: CrewCard, CrewFilters, Pagination, StateMessage…'],
     ['api/', 'The course fake API, its settings and the seed crew (as in Task 04)'],
+    ['store/', 'configureStore (the Redux store) and the shared thunk helper runRequest'],
+    ['features/', 'Redux slices, thunks and selectors: crew, news, requestLog, notifications'],
+    ['hooks/', 'Custom hooks that connect pages to the store: useCrewList, useCrewMember, useCrewStats, useNews…'],
     ['context/', 'AuthContext: AuthProvider and useAuth (Firebase Authentication)'],
-    ['services/', 'service.js: every API request the pages make; cache.js: the response cache'],
+    ['services/', 'crewApi.js and newsApi.js: every API request (called only by the thunks)'],
     ['utils/', 'URL filters, page titles, formatting, dashboard statistics'],
     ['styles/', 'Design tokens, layout, components, pages'],
 ];
@@ -39,7 +42,7 @@ export default function AboutPage() {
             <PageHeader
                 eyebrow="About"
                 title="About this project"
-                subtitle="Task 07 of the React Fall 2026 course: an installable, offline-ready PWA (on top of caching and Firebase Authentication)."
+                subtitle="Task 08 of the React Fall 2026 course: global state with Redux Toolkit, on top of the offline-ready PWA and Firebase Authentication."
             >
                 <Link to="/crew" className="btn btn--primary">
                     Go to the crew roster
@@ -74,28 +77,29 @@ export default function AboutPage() {
                             stepped through with Back and Forward.
                         </li>
                         <li>
-                            <strong>Stale requests.</strong> Each request effect has its own{' '}
-                            <code>let ignore = false</code>, and the cleanup sets it to <code>true</code>. When the
-                            user moves on, the old response is dropped and shows up as <em>Ignored (stale)</em> in the
-                            request log at the bottom of each page.
+                            <strong>Stale requests.</strong> Every request is a <code>createAsyncThunk</code>. The
+                            hook that starts it aborts it in the effect cleanup, and the slice only accepts the answer
+                            of the newest request. When the user moves on, the old response is dropped and shows up as{' '}
+                            <em>Ignored (stale)</em> in the request log at the bottom of each page.
                         </li>
                         <li>
                             <strong>Lazy loading.</strong> Seven pages are loaded with <code>React.lazy</code> and{' '}
                             <code>Suspense</code>, each in its own chunk.
                         </li>
                         <li>
-                            <strong>Caching.</strong> API answers are kept in memory for 60 seconds, so going back to a
-                            page shows it at once. Any change to the crew clears the cache.
+                            <strong>Redux Toolkit.</strong> Loaded data lives in one store, split into feature slices.
+                            Each crew member and article is stored once, by id. Going back to a page shows it at once
+                            without a request; any change to the crew makes the lists and the dashboard load again.
                         </li>
                         <li>
                             <strong>Authentication.</strong> Firebase email/password and Google sign-in. The session
                             survives a refresh, and <code>/profile</code> is only for signed-in users.
                         </li>
                         <li>
-                            <strong>Basic hooks.</strong> Components use <code>useState</code> and{' '}
-                            <code>useEffect</code>, plus the React Router hooks and <code>useAuth</code> (a small
-                            hook over <code>useContext</code>). Every page loads its own data in an effect through{' '}
-                            <code>services/</code>.
+                            <strong>Hooks.</strong> Pages read the store through small custom hooks (
+                            <code>useCrewList</code>, <code>useCrewMember</code>, …) built on{' '}
+                            <code>useSelector</code> and <code>useDispatch</code>. Filters stay in the URL, and
+                            temporary UI state (open forms, typed text) stays in <code>useState</code>.
                         </li>
                     </ul>
                 </section>
@@ -129,7 +133,7 @@ export default function AboutPage() {
                     <section className="panel about__stack">
                         <h2 className="panel__title">Built with</h2>
                         <ul className="chips">
-                            {['React 19', 'React Router 8', 'Firebase Auth', 'Vite 8', 'Plain CSS', 'Service Worker', 'GitHub Pages'].map((tool) => (
+                            {['React 19', 'React Router 8', 'Redux Toolkit', 'Firebase Auth', 'Vite 8', 'Plain CSS', 'Service Worker', 'GitHub Pages'].map((tool) => (
                                 <li key={tool} className="chip">
                                     {tool}
                                 </li>

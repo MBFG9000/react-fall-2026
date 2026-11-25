@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate, useOutletContext, useParams } from 'react-router';
+import { useDispatch } from 'react-redux';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import ClearanceMeter from '../components/ClearanceMeter.jsx';
 import CrewForm from '../components/CrewForm.jsx';
 import { DetailsSkeleton } from '../components/Skeletons.jsx';
 import StateMessage from '../components/StateMessage.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
-import { deleteCrewMember, getCrewMember, isNotFoundError, updateCrewMember } from '../services/service.js';
+import { deleteCrewMember, updateCrewMember } from '../features/crew/crewThunks.js';
+import { noticeShown } from '../features/notifications/notificationsSlice.js';
+import { useCrewMember } from '../hooks/useCrewMember.js';
 import { crewListHref, parseCrewId } from '../utils/crewFilters.js';
 import { formatDate, formatDateTime, formatServiceLength, initials } from '../utils/format.js';
 import { setPageTitle } from '../utils/pageTitle.js';
-import { addLog } from '../utils/requestLog.js';
 
 function BackLinks() {
     const navigate = useNavigate();
@@ -48,58 +50,16 @@ export default function CrewDetailsPage() {
     const id = parseCrewId(crewId); // null when the URL has something like /crew/abc
     const location = useLocation();
     const navigate = useNavigate();
-    const { notify, setLog, dataVersion } = useOutletContext();
+    const dispatch = useDispatch();
 
-    // Result of the last request, together with the id it was made for.
-    // status: 'loading' | 'success' | 'not-found' | 'error'
-    const [request, setRequest] = useState({ id: null, status: 'loading', member: null, error: null });
-    const [reloadKey, setReloadKey] = useState(0); // bumped by "Try again"
+    // The member, the request state and the running mutation all come from the
+    // crew slice, keyed by id. So the page can never show member #1 under /crew/2,
+    // and a "Saving…" button belongs to the member it was pressed for.
+    const { member, status, error, pendingAction, retry } = useCrewMember(id);
 
-    // { id, action } of the update in flight. Tied to an id, so it never
-    // blocks a different member if the URL changes while it is running.
-    const [pending, setPending] = useState(null);
+    // Which member the edit form is open for (temporary UI state, stays local).
     const [editingId, setEditingId] = useState(null);
 
-    // Load the member whenever the id in the URL changes, on "Try again", and after "Reset data".
-    useEffect(() => {
-        if (id === null) return; // invalid id: nothing to load
-
-        let ignore = false;
-        const label = `GET /items/${id}`;
-        const startedAt = Date.now();
-
-        // Clear immediately so the previous member is never shown under the new id.
-        setRequest({ id, status: 'loading', member: null, error: null });
-
-        getCrewMember(id)
-            .then((member) => {
-                if (ignore) {
-                    // The user opened another member before this answer came. Drop it.
-                    addLog(setLog, label, 'stale', startedAt);
-                    return;
-                }
-                addLog(setLog, label, 'ok', startedAt);
-                setRequest({ id, status: 'success', member, error: null });
-            })
-            .catch((err) => {
-                addLog(setLog, label, ignore ? 'stale' : 'error', startedAt);
-                if (ignore) return;
-                setRequest({ id, status: isNotFoundError(err) ? 'not-found' : 'error', member: null, error: err });
-            });
-
-        return () => {
-            ignore = true;
-        };
-    }, [id, reloadKey, dataVersion, setLog]);
-
-    // Right after the URL changes (/crew/1 -> /crew/2) the effect has not run
-    // yet and `request` still describes #1. Treat that moment as loading.
-    const isCurrent = request.id === id;
-    const status = isCurrent ? request.status : 'loading';
-    const member = isCurrent ? request.member : null;
-    const error = isCurrent ? request.error : null;
-
-    const pendingAction = pending?.id === id ? pending.action : null;
     const isEditing = editingId !== null && editingId === id;
     const isNotFound = id === null || status === 'not-found';
     const memberName = member?.name;
@@ -108,70 +68,40 @@ export default function CrewDetailsPage() {
         setPageTitle(memberName ?? (isNotFound ? 'Crew member not found' : 'Crew member'));
     }, [memberName, isNotFound]);
 
-    // Put the server's answer on screen, but only if this page still shows
-    // that member (the user may have moved on while the request was running).
-    function showUpdated(updated) {
-        setRequest((prev) => (prev.id === updated.id && prev.member ? { ...prev, member: updated } : prev));
-    }
-
     // ----- Actions -----
-    // `memberId` and `name` are captured when the action starts, so the
-    // response is applied to the member the action was started for.
+    // `memberId` and `name` are captured when the action starts, so messages
+    // name the member the action was started for. After every change the crew
+    // slice stores the server's answer and raises its version, so the roster
+    // and the dashboard load again when they are shown.
 
     async function handleToggleDuty() {
         const { id: memberId, name } = member;
         const nextStatus = member.status === 'on-duty' ? 'off-duty' : 'on-duty';
-        const label = `PATCH /items/${memberId} status=${nextStatus}`;
-        const startedAt = Date.now();
-        setPending({ id: memberId, action: 'status' });
         try {
-            const updated = await updateCrewMember(memberId, { status: nextStatus });
-            addLog(setLog, label, 'ok', startedAt);
-            showUpdated(updated);
-            notify({ tone: 'success', text: `${name} is now ${nextStatus === 'on-duty' ? 'on duty' : 'off duty'}.` });
+            await dispatch(updateCrewMember({ id: memberId, changes: { status: nextStatus }, action: 'status' })).unwrap();
+            dispatch(noticeShown('success', `${name} is now ${nextStatus === 'on-duty' ? 'on duty' : 'off duty'}.`));
         } catch (err) {
-            addLog(setLog, label, 'error', startedAt);
-            notify({ tone: 'error', text: `Could not update ${name}: ${err.message}` });
-        } finally {
-            setPending(null);
+            dispatch(noticeShown('error', `Could not update ${name}: ${err.message}`));
         }
     }
 
-    // Errors are re-thrown on purpose: CrewForm shows them and stays open.
+    // Errors are re-thrown on purpose (unwrap): CrewForm shows them and stays open.
     async function handleSave(memberId, changes) {
-        const label = `PATCH /items/${memberId}`;
-        const startedAt = Date.now();
-        setPending({ id: memberId, action: 'save' });
-        try {
-            const updated = await updateCrewMember(memberId, changes);
-            addLog(setLog, label, 'ok', startedAt);
-            showUpdated(updated);
-            setEditingId(null);
-            notify({ tone: 'success', text: `${updated.name} was saved.` });
-        } catch (err) {
-            addLog(setLog, label, 'error', startedAt);
-            throw err;
-        } finally {
-            setPending(null);
-        }
+        const updated = await dispatch(updateCrewMember({ id: memberId, changes, action: 'save' })).unwrap();
+        setEditingId(null);
+        dispatch(noticeShown('success', `${updated.name} was saved.`));
     }
 
     async function handleDelete() {
         const { id: memberId, name } = member;
         if (!window.confirm(`Remove ${name} from the roster?`)) return;
-        const label = `DELETE /items/${memberId}`;
-        const startedAt = Date.now();
-        setPending({ id: memberId, action: 'delete' });
         try {
-            await deleteCrewMember(memberId);
-            addLog(setLog, label, 'ok', startedAt);
-            notify({ tone: 'success', text: `${name} was removed.` });
+            await dispatch(deleteCrewMember({ id: memberId })).unwrap();
+            dispatch(noticeShown('success', `${name} was removed.`));
             // Replace: going Back must not land on the removed member's page.
             navigate(location.state?.from ?? crewListHref(), { replace: true });
         } catch (err) {
-            addLog(setLog, label, 'error', startedAt);
-            notify({ tone: 'error', text: `Could not remove ${name}: ${err.message}` });
-            setPending(null);
+            dispatch(noticeShown('error', `Could not remove ${name}: ${err.message}`));
         }
     }
 
@@ -191,25 +121,27 @@ export default function CrewDetailsPage() {
             );
         }
 
-        if (status === 'loading') {
-            return (
-                <div role="status">
-                    <p className="state__text">Loading record #{id}…</p>
-                    <DetailsSkeleton />
-                </div>
-            );
-        }
-
-        if (status === 'error') {
+        if (status === 'error' && !member) {
             return (
                 <StateMessage tone="error" title="Could not load this record" text={error.message}>
-                    <button type="button" className="btn btn--primary" onClick={() => setReloadKey((k) => k + 1)}>
+                    <button type="button" className="btn btn--primary" onClick={retry}>
                         Try again
                     </button>
                     <Link to="/crew" className="btn btn--ghost">
                         All crew
                     </Link>
                 </StateMessage>
+            );
+        }
+
+        // Still loading and the member is not in the store yet (e.g. a direct link).
+        // Opened from the roster, the member is already there and shown at once.
+        if (!member) {
+            return (
+                <div role="status">
+                    <p className="state__text">Loading record #{id}…</p>
+                    <DetailsSkeleton />
+                </div>
             );
         }
 

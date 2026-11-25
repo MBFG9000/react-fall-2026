@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useOutletContext, useSearchParams } from 'react-router';
+import { useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import CrewCard from '../components/CrewCard.jsx';
 import BarList from '../components/dashboard/BarList.jsx';
 import ClearanceColumns from '../components/dashboard/ClearanceColumns.jsx';
@@ -9,19 +9,16 @@ import PageHeader from '../components/PageHeader.jsx';
 import { DashboardSkeleton } from '../components/Skeletons.jsx';
 import StateMessage from '../components/StateMessage.jsx';
 import { DEPARTMENTS } from '../constants.js';
-import { clearCrewCache, getAllCrew } from '../services/service.js';
-import { computeCrewStats } from '../utils/crewStats.js';
+import { useCrewStats } from '../hooks/useCrewStats.js';
 import { crewListHref } from '../utils/crewFilters.js';
 import { percent } from '../utils/format.js';
 import { setPageTitle } from '../utils/pageTitle.js';
-import { addLog } from '../utils/requestLog.js';
 
 function formatNumber(value, digits = 1) {
     return value === null ? '—' : value.toFixed(digits);
 }
 
 export default function DashboardPage() {
-    const { setLog, dataVersion } = useOutletContext();
     const [searchParams, setSearchParams] = useSearchParams();
 
     // The department filter lives in the URL (?department=Science) and is sent
@@ -29,56 +26,17 @@ export default function DashboardPage() {
     const rawDepartment = searchParams.get('department') ?? '';
     const department = DEPARTMENTS.includes(rawDepartment) ? rawDepartment : '';
 
-    const [crew, setCrew] = useState(null); // every crew member in the selected department
-    const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
-    const [error, setError] = useState(null);
-    const [reloadKey, setReloadKey] = useState(0);
+    // Loads every crew member of the department (through the crew slice) and
+    // returns the statistics from the memoized selectCrewStats: they are only
+    // calculated again when the data behind them changes.
+    const { stats, status, error, reload } = useCrewStats(department);
 
     useEffect(() => {
         setPageTitle('Dashboard');
     }, []);
 
-    useEffect(() => {
-        let ignore = false;
-        const label = `GET /items?${department ? `department=${department}&` : ''}limit=1000 (dashboard)`;
-        const startedAt = Date.now();
-
-        setStatus('loading'); // the old numbers stay on screen (dimmed) until the answer arrives
-        setError(null);
-
-        getAllCrew(department)
-            .then((data) => {
-                if (ignore) {
-                    // Another department was picked before this answer came. Drop it.
-                    addLog(setLog, label, 'stale', startedAt);
-                    return;
-                }
-                addLog(setLog, label, 'ok', startedAt);
-                setCrew(data);
-                setStatus('success');
-            })
-            .catch((err) => {
-                addLog(setLog, label, ignore ? 'stale' : 'error', startedAt);
-                if (ignore) return;
-                setError(err);
-                setStatus('error');
-            });
-
-        return () => {
-            ignore = true;
-        };
-    }, [department, reloadKey, dataVersion, setLog]);
-
-    // Plain calculation on every render: 18 crew members is cheap to count.
-    const stats = crew ? computeCrewStats(crew) : null;
     const isLoading = status === 'loading';
-    const isRefreshing = isLoading && crew !== null;
-
-    // Reload skips the cache: forget the saved answers, then run the effect again.
-    function reload() {
-        clearCrewCache();
-        setReloadKey((k) => k + 1);
-    }
+    const isRefreshing = isLoading && stats !== null;
 
     function selectDepartment(value) {
         setSearchParams(value ? { department: value } : {}, { preventScrollReset: true });
@@ -87,7 +45,7 @@ export default function DashboardPage() {
     const scopeLabel = department || 'the whole ship';
 
     function renderContent() {
-        if (isLoading && !crew) {
+        if (isLoading && !stats) {
             return (
                 <div role="status">
                     <p className="sr-only">Loading statistics…</p>
